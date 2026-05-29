@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Foxit EV 测算 · WR40 模型</title>
+<style>
+  :root {
+    --ink: #0a0e1a;
+    --ink-soft: #1c2536;
+    --paper: #f5f3ee;
+    --paper-warm: #ebe6dc;
+    --paper-card: #fdfcf8;
+    --rule: #d8d2c4;
+    --rule-soft: #e8e3d6;
+    --accent: #b8472e;
+    --accent-deep: #8a3320;
+    --accent-soft: #d4664a;
+    --muted: #6b7384;
+    --positive: #2d6a4f;
+    --gold: #c9a14a;
+    --shadow: 0 1px 0 rgba(10,14,26,0.04), 0 8px 32px -12px rgba(10,14,26,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(184,71,46,0.04) 0%, transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(201,161,74,0.05) 0%, transparent 40%);
+  }
+
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.4;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ====== HEADER ====== */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 40px;
+  }
+
+  .brand-mark {
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  .brand-icon {
+    width: 44px; height: 44px;
+    background: var(--ink);
+    color: var(--paper);
+    display: grid; place-items: center;
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 600;
+    font-size: 22px;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    position: relative;
+  }
+  .brand-icon::after {
+    content: ''; position: absolute;
+    inset: -4px -4px auto auto;
+    width: 10px; height: 10px;
+    background: var(--accent);
+  }
+
+  .brand-text { line-height: 1.15; }
+  .brand-text .eyebrow {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .brand-text h1 {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .brand-text h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .header-meta {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    letter-spacing: 0.05em;
+  }
+  .header-meta .doc-id { color: var(--ink); font-weight: 500; }
+
+  /* ====== TABS ====== */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .tab {
+    padding: 14px 28px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    display: flex; align-items: center; gap: 10px;
+    letter-spacing: -0.005em;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tab .tab-num {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--paper-warm);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+  .tab.active .tab-num { background: var(--accent); color: var(--paper); }
+
+  /* ====== LAYOUT ====== */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+
+  @media (max-width: 960px) {
+    .grid { grid-template-columns: 1fr; }
+    .container { padding: 32px 20px; }
+    .header { flex-direction: column; align-items: flex-start; gap: 20px; }
+  }
+
+  /* ====== CARDS ====== */
+  .card {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    padding: 28px 28px 24px;
+    position: relative;
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .card-title {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .card-title em { font-style: italic; color: var(--muted); font-weight: 400; }
+
+  .card-tag {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ====== ROWS ====== */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+    align-items: center;
+  }
+  .row:last-child { border-bottom: none; }
+  .row.input-row { padding: 10px 0; }
+
+  .row-label {
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .row-label .label-cn {
+    font-size: 13.5px;
+    color: var(--ink);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .row-label .label-en {
+    font-size: 10.5px;
+    color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+
+  /* ====== INPUTS ====== */
+  input.cell {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d4ed8;
+    background: #fffef5;
+    border: 1px solid var(--rule);
+    padding: 8px 12px;
+    width: 180px;
+    text-align: right;
+    outline: none;
+    transition: all 0.15s ease;
+    border-radius: 0;
+  }
+  input.cell:hover { border-color: var(--ink-soft); }
+  input.cell:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(184,71,46,0.1);
+  }
+  input.cell::placeholder { color: #c4ccd7; font-weight: 400; }
+
+  /* ====== COMPUTED VALUES ====== */
+  .computed {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+    width: 180px;
+    padding: 8px 12px;
+    background: transparent;
+    display: inline-block;
+  }
+  .computed.percent { color: var(--positive); }
+  .computed.muted { color: var(--muted); font-weight: 400; }
+
+  /* ====== METRIC SECTION ====== */
+  .metric-section {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 2px solid var(--ink);
+    position: relative;
+  }
+  .metric-section::before {
+    content: '';
+    position: absolute;
+    top: -2px; left: 0;
+    width: 60px; height: 2px;
+    background: var(--accent);
+  }
+
+  .section-title {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* ====== HERO RESULT ====== */
+  .hero-result {
+    margin-top: 32px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 36px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-result::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 140px; height: 140px;
+    background: var(--accent);
+    transform: translate(70px, -70px) rotate(45deg);
+  }
+  .hero-result::after {
+    content: '';
+    position: absolute;
+    bottom: 16px; left: 32px; right: 32px;
+    height: 1px;
+    background: rgba(245,243,238,0.15);
+  }
+  .hero-eyebrow {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(245,243,238,0.6);
+    margin-bottom: 12px;
+    position: relative; z-index: 1;
+  }
+  .hero-value {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 52px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+  }
+  .hero-unit {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    color: rgba(245,243,238,0.5);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    position: relative; z-index: 1;
+  }
+  .hero-secondary {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(245,243,238,0.15);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    position: relative; z-index: 1;
+  }
+  .hero-secondary .item .lbl {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9.5px;
+    color: rgba(245,243,238,0.5);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .hero-secondary .item .val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--paper);
+  }
+  .hero-secondary .item .val.accent { color: var(--accent-soft); }
+
+  /* ====== FORMULA BAR ====== */
+  .formula-bar {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--paper-warm);
+    border-left: 3px solid var(--gold);
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .formula-bar .f-row { display: flex; gap: 12px; }
+  .formula-bar .f-key { color: var(--muted); min-width: 110px; }
+  .formula-bar .f-val { color: var(--ink); }
+
+  /* ====== FOOTER ====== */
+  .footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .footer .reset-btn {
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    transition: all 0.15s ease;
+  }
+  .footer .reset-btn:hover {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* legend */
+  .legend {
+    display: flex; gap: 20px;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .legend-dot.input { background: #1d4ed8; }
+  .legend-dot.calc { background: var(--ink); }
+  .legend-dot.result { background: var(--accent); }
+
+  /* small label on input rows */
+  .input-tag {
+    display: inline-block;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 8.5px;
+    background: #e0e7ff;
+    color: #1d4ed8;
+    padding: 2px 5px;
+    margin-left: 6px;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    border-radius: 1px;
+  }
+  .calc-tag {
+    display: inline-block;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 8.5px;
+    background: var(--paper-warm);
+    color: var(--muted);
+    padding: 2px 5px;
+    margin-left: 6px;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    border-radius: 1px;
+  }
+
+  /* ====== JEFFERIES MATRIX ====== */
+  .matrix-intro {
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    align-items: end;
+  }
+  .matrix-intro h2 {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 500;
+    font-size: 26px;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .matrix-intro h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .matrix-intro p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 560px;
+  }
+  .matrix-source {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.6;
+  }
+  .matrix-source strong {
+    color: var(--ink);
+    display: block;
+    font-size: 12px;
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-style: italic;
+    font-weight: 500;
+    margin-bottom: 4px;
+    letter-spacing: 0;
+  }
+
+  .matrix-wrapper {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+
+  .matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    min-width: 760px;
+  }
+  .matrix th, .matrix td {
+    padding: 14px 10px;
+    text-align: center;
+    border: 1px solid var(--rule-soft);
+    vertical-align: middle;
+    position: relative;
+  }
+  .matrix thead th {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    padding: 12px 8px;
+  }
+  .matrix thead th:first-child { background: transparent; border: none; }
+  .matrix thead th .axis-band {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+    color: #fff;
+  }
+  .matrix thead th .axis-cap {
+    font-size: 9.5px;
+    color: rgba(245,243,238,0.65);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .matrix th.row-label {
+    background: var(--paper-warm);
+    color: var(--ink);
+    text-align: left;
+    font-weight: 500;
+    font-size: 11.5px;
+    padding: 14px 14px;
+    width: 130px;
+    line-height: 1.35;
+  }
+  .matrix th.row-label .axis-band {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .matrix th.row-label .axis-cap {
+    font-size: 9.5px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .matrix th.col-consolidated, .matrix tr.row-consolidated th.row-label {
+    background: #e6e0d0;
+  }
+  .matrix th.col-consolidated .axis-band { color: var(--ink); }
+  .matrix th.col-consolidated .axis-cap { color: var(--muted); }
+
+  .matrix td.cell {
+    background: #f0f4ff;
+    transition: all 0.3s ease;
+  }
+  .matrix td.cell.consolidated { background: #e8eaf0; }
+  .matrix td.cell .mult {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: #1e3a8a;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .matrix td.cell .companies {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .matrix td.cell.empty .mult { color: var(--rule); font-size: 18px; }
+  .matrix td.cell.empty .companies { color: var(--rule); }
+
+  /* mini bar inside cell */
+  .matrix td.cell .bar {
+    width: 60%;
+    margin: 0 auto 6px;
+    height: 4px;
+    background: rgba(30,58,138,0.15);
+    position: relative;
+  }
+  .matrix td.cell .bar::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: #1e3a8a;
+  }
+
+  /* Highlight cells based on WR40 result */
+  .matrix td.cell.highlight-intl {
+    box-shadow: inset 0 0 0 3px var(--accent);
+    background: #fff4f0;
+    z-index: 2;
+  }
+  .matrix td.cell.highlight-intl .mult { color: var(--accent-deep); }
+  .matrix td.cell.highlight-cn {
+    box-shadow: inset 0 0 0 3px var(--positive);
+    background: #f0f7f3;
+    z-index: 2;
+  }
+  .matrix td.cell.highlight-cn .mult { color: var(--positive); }
+  .matrix td.cell.highlight-both {
+    box-shadow: inset 0 0 0 3px var(--gold);
+    background: #fdf6e3;
+    z-index: 2;
+  }
+
+  /* Axis highlight on header / row label when active */
+  .matrix th.axis-active-intl { background: var(--accent); color: #fff; }
+  .matrix th.axis-active-intl .axis-cap { color: rgba(255,255,255,0.7); }
+  .matrix th.axis-active-cn { background: var(--positive); color: #fff; }
+  .matrix th.axis-active-cn .axis-cap { color: rgba(255,255,255,0.7); }
+
+  /* Result summary cards */
+  .benchmark-summary {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) {
+    .benchmark-summary { grid-template-columns: 1fr; }
+    .matrix-intro { grid-template-columns: 1fr; }
+    .matrix-source { text-align: left; }
+  }
+
+  .bench-card {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    padding: 22px 24px;
+    position: relative;
+  }
+  .bench-card.intl::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; bottom: 0; width: 3px;
+    background: var(--accent);
+  }
+  .bench-card.cn::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; bottom: 0; width: 3px;
+    background: var(--positive);
+  }
+  .bench-card .b-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .bench-card .b-region {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .bench-card .b-region em { font-style: italic; color: var(--muted); font-weight: 400; }
+  .bench-card .b-bucket {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bench-card .b-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .bench-card .b-grid .b-item {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .bench-card .b-grid .b-item .b-lbl {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9.5px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .bench-card .b-grid .b-item .b-val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .bench-card .b-grid .b-item .b-val.accent { color: var(--accent); }
+  .bench-card .b-grid .b-item .b-val.pos { color: var(--positive); }
+  .bench-card .b-bucket-detail {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--rule-soft);
+    line-height: 1.5;
+  }
+  .bench-card .b-bucket-detail strong {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .legend-cells {
+    margin-top: 16px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .legend-cells .legend-item {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .legend-cells .swatch {
+    width: 16px; height: 12px; display: inline-block;
+    border: 1px solid var(--rule);
+  }
+  .swatch.s-intl { background: #fff4f0; box-shadow: inset 0 0 0 2px var(--accent); }
+  .swatch.s-cn { background: #f0f7f3; box-shadow: inset 0 0 0 2px var(--positive); }
+  .swatch.s-both { background: #fdf6e3; box-shadow: inset 0 0 0 2px var(--gold); }
+
+  /* ====== EV COMPARE BAR CHART ====== */
+  .compare-section {
+    margin-top: 36px;
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    padding: 28px 28px 32px;
+    box-shadow: var(--shadow);
+  }
+  .compare-section .sec-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .compare-section h3 {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .compare-section h3 em { font-style: italic; color: var(--muted); font-weight: 400; }
+  .compare-section .sec-tag {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bars-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+  }
+  @media (max-width: 720px) { .bars-grid { grid-template-columns: 1fr; } }
+  .bar-group .bg-title {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 100px;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0;
+  }
+  .bar-row .br-label {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+  .bar-row .br-label strong {
+    display: block;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 2px;
+    letter-spacing: 0;
+  }
+  .bar-track {
+    height: 28px;
+    background: var(--paper-warm);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--ink);
+    width: 0;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+  }
+  .bar-fill.wr40 { background: linear-gradient(90deg, var(--accent), var(--accent-soft)); }
+  .bar-fill.jeff { background: linear-gradient(90deg, #1e3a8a, #3b5bdb); }
+  .bar-fill.jeff-na {
+    background: repeating-linear-gradient(45deg, var(--rule), var(--rule) 6px, var(--paper-warm) 6px, var(--paper-warm) 12px);
+  }
+  .br-val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    text-align: right;
+  }
+  .br-val.na { color: var(--muted); font-weight: 400; font-style: italic; }
+  .compare-footnote {
+    margin-top: 18px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.55;
+    padding: 12px 14px;
+    background: var(--paper-warm);
+    border-left: 3px solid var(--gold);
+  }
+
+  /* ====== HISTORY TRAIL ====== */
+  .matrix td.cell .trail-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .trail-dot {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transform: translate(-50%, -50%);
+    cursor: help;
+  }
+  .trail-dot.intl { background: var(--accent); }
+  .trail-dot.cn { background: var(--positive); }
+  .trail-dot.current {
+    width: 26px; height: 26px;
+    border: 3px solid var(--gold);
+    z-index: 4;
+  }
+  .trail-dot:hover { transform: translate(-50%, -50%) scale(1.15); }
+
+  .history-controls {
+    margin-top: 18px;
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .history-controls label {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
+  }
+  .history-controls input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper-card);
+    cursor: pointer;
+    position: relative;
+    border-radius: 0;
+  }
+  .history-controls input[type="checkbox"]:checked {
+    background: var(--ink);
+  }
+  .history-controls input[type="checkbox"]:checked::after {
+    content: '✓'; position: absolute; inset: 0;
+    color: var(--paper); font-size: 11px;
+    display: grid; place-items: center;
+    font-family: sans-serif; font-weight: bold;
+  }
+  .history-controls .hc-legend {
+    display: flex; align-items: center; gap: 6px;
+    letter-spacing: 0.04em;
+  }
+  .history-controls .hc-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .history-controls .hc-dot.intl { background: var(--accent); }
+  .history-controls .hc-dot.cn { background: var(--positive); }
+
+  /* ====== MODAL ====== */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(10,14,26,0.55);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+  }
+  .modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
+  .modal {
+    background: var(--paper-card);
+    max-width: 580px; width: 100%;
+    border: 1px solid var(--rule);
+    box-shadow: 0 24px 80px -16px rgba(10,14,26,0.4);
+    position: relative;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal-header {
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px;
+    position: relative;
+  }
+  .modal-header::after {
+    content: ''; position: absolute;
+    left: 0; bottom: -1px;
+    width: 60px; height: 2px;
+    background: var(--accent);
+  }
+  .modal-eyebrow {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .modal-title {
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .modal-title em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .modal-close {
+    background: none; border: 1px solid var(--rule);
+    width: 32px; height: 32px;
+    cursor: pointer;
+    font-size: 18px; line-height: 1;
+    color: var(--muted);
+    display: grid; place-items: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .modal-body { padding: 24px 28px 28px; }
+  .modal-stat {
+    display: flex; justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+    font-size: 13px;
+  }
+  .modal-stat:last-child { border-bottom: none; }
+  .modal-stat .ms-label { color: var(--muted); }
+  .modal-stat .ms-val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .modal-block {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: var(--paper-warm);
+    border-left: 3px solid var(--accent);
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .modal-block.empty { border-left-color: var(--muted); }
+  .modal-block strong { color: var(--ink); font-weight: 600; }
+  .modal-foxit-status {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    font-size: 12px;
+  }
+  .modal-foxit-status .fs-row {
+    display: flex; justify-content: space-between;
+    padding: 4px 0;
+  }
+  .modal-foxit-status .fs-row .fs-label {
+    color: var(--muted);
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .modal-foxit-status .fs-row .fs-val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-weight: 600;
+  }
+  .modal-foxit-status .fs-row .fs-val.intl { color: var(--accent); }
+  .modal-foxit-status .fs-row .fs-val.cn { color: var(--positive); }
+
+  /* clickable cell affordance */
+  .matrix td.cell { cursor: pointer; }
+  .matrix td.cell:hover {
+    filter: brightness(0.97);
+    outline: 1px solid var(--ink);
+    outline-offset: -1px;
+  }
+
+  /* ====== IMPORT FEATURE ====== */
+  .import-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 9px 18px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+    align-self: center;
+    white-space: nowrap;
+    position: relative;
+  }
+  .import-btn:hover { background: var(--accent); }
+  .import-btn::before {
+    content: '';
+    position: absolute;
+    inset: -3px -3px auto auto;
+    width: 8px; height: 8px;
+    background: var(--gold);
+  }
+
+  .import-modal { max-width: 620px; width: 100%; }
+
+  .import-section {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .import-section:last-child { border-bottom: none; }
+  .import-section > .isec-label {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .api-key-row { display: flex; gap: 10px; }
+  .api-key-input {
+    flex: 1; min-width: 0;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+    border-radius: 0;
+  }
+  .api-key-input:focus { border-color: var(--accent); }
+  .api-save-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .api-save-btn:hover { background: var(--accent); }
+
+  .drop-zone {
+    border: 2px dashed var(--rule);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    background: var(--paper-warm);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #fff8f6;
+  }
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-zone-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .drop-zone-text {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+  }
+  .drop-zone-text strong {
+    color: var(--ink);
+    display: block;
+    font-size: 13.5px;
+    margin-bottom: 5px;
+    font-family: Georgia, "Songti SC", "SimSun", serif;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .drop-zone-formats {
+    font-size: 10px;
+    color: var(--rule);
+    margin-top: 8px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .import-status {
+    margin-top: 12px;
+    padding: 10px 14px;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .import-status.loading { display: flex; background: var(--paper-warm); border-left: 3px solid var(--gold); color: var(--ink-soft); }
+  .import-status.success { display: flex; background: #f0f7f3; border-left: 3px solid var(--positive); color: var(--positive); }
+  .import-status.error { display: block; background: #fff4f0; border-left: 3px solid var(--accent); color: var(--accent-deep); }
+  .spinner {
+    width: 15px; height: 15px;
+    border: 2px solid rgba(10,14,26,0.15);
+    border-top-color: var(--ink);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .extract-table { width: 100%; border-collapse: collapse; }
+  .extract-table th {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 7px 10px;
+    background: var(--paper-warm);
+    text-align: left;
+    font-weight: 500;
+  }
+  .extract-table td { padding: 10px; border-bottom: 1px dashed var(--rule-soft); vertical-align: middle; }
+  .extract-table tr:last-child td { border-bottom: none; }
+  .et-name { color: var(--muted); font-size: 11px; line-height: 1.3; }
+  .et-name strong { color: var(--ink); display: block; font-size: 13px; font-weight: 500; margin-bottom: 1px; }
+  .et-val {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-weight: 600;
+    color: #1d4ed8;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .et-val.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+  .et-status { text-align: center; font-size: 14px; width: 30px; }
+
+  .region-row {
+    display: flex; gap: 20px; align-items: center;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .region-row .region-lbl {
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .region-row label {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 11.5px;
+    color: var(--ink);
+  }
+  .region-row input[type="radio"] {
+    appearance: none; -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    background: var(--paper-card);
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .region-row input[type="radio"]:checked::after {
+    content: ''; position: absolute;
+    inset: 2px; border-radius: 50%;
+    background: var(--ink);
+  }
+
+  .import-footer {
+    display: flex; justify-content: flex-end; align-items: center; gap: 12px;
+    padding: 16px 28px;
+    border-top: 1px solid var(--rule);
+    background: var(--paper-warm);
+  }
+  .import-cancel-btn {
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 9px 18px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    transition: all 0.15s;
+  }
+  .import-cancel-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .import-apply-btn {
+    background: var(--accent);
+    color: var(--paper);
+    border: none;
+    padding: 9px 22px;
+    cursor: pointer;
+    font-family: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .import-apply-btn:hover { background: var(--accent-deep); }
+  .import-apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand-mark">
+      <div class="brand-icon">F</div>
+      <div class="brand-text">
+        <div class="eyebrow">FOXIT · VALUATION MODEL</div>
+        <h1>EV 测算 <em>WR40</em></h1>
+      </div>
+    </div>
+    <button class="import-btn" id="importBtn">⊕ 导入财报</button>
+    <div class="header-meta">
+      <div class="doc-id">DOC · WR40-EV-2025</div>
+      <div>Last calibrated <span id="timestamp"></span></div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="intl">
+      <span class="tab-num">01</span>
+      国际区 · International
+    </button>
+    <button class="tab" data-tab="cn">
+      <span class="tab-num">02</span>
+      中国区 · China
+    </button>
+    <button class="tab" data-tab="jeff">
+      <span class="tab-num">03</span>
+      Jefferies 矩阵 · Benchmark
+    </button>
+  </nav>
+
+  <!-- ============ 国际区 ============ -->
+  <section class="panel active" id="panel-intl">
+    <div class="grid">
+
+      <!-- Inputs -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">现金流 & 营收 <em>· inputs</em></div>
+          <div class="card-tag">USD m</div>
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">经营活动产生的现金流量净额<span class="input-tag">USD m</span></div>
+            <div class="label-en">Net cash flows from operating activities</div>
+          </div>
+          <input type="number" step="any" class="cell" id="i-ocf" value="38.33" />
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">资本性支出 (CapEx)<span class="input-tag">USD m</span></div>
+            <div class="label-en">Cash paid for fixed assets, intangibles & other LT assets</div>
+          </div>
+          <input type="number" step="any" class="cell" id="i-capex" value="7.53" />
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">自由现金流 (FCF)<span class="calc-tag">= OCF − CapEx</span></div>
+            <div class="label-en">Free Cash Flow · USD m</div>
+          </div>
+          <span class="computed" id="i-fcf">—</span>
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">营业总收入 · 当期<span class="input-tag">USD m</span></div>
+            <div class="label-en">Total Revenue (2025 FY)</div>
+          </div>
+          <input type="number" step="any" class="cell" id="i-rev1" value="116.11" />
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">营业总收入 · 上期<span class="input-tag">USD m</span></div>
+            <div class="label-en">Total Revenue (2024 FY)</div>
+          </div>
+          <input type="number" step="any" class="cell" id="i-rev0" value="89.25" />
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">营收增速<span class="calc-tag">= (Rev₁ − Rev₀) / Rev₀</span></div>
+            <div class="label-en">Revenue Growth (% of Change)</div>
+          </div>
+          <span class="computed percent" id="i-growth">—</span>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">估值指标 <em>· metrics</em></div>
+          <div class="card-tag">VALUATION</div>
+        </div>
+
+        <div class="section-title">— Profitability</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">FCF 利润率<span class="calc-tag">= FCF / Revenue</span></div>
+            <div class="label-en">FCF Margin</div>
+          </div>
+          <span class="computed percent" id="i-fcfm">—</span>
+        </div>
+
+        <div class="section-title" style="margin-top: 24px;">— Composite Scores</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">Rule of 40<span class="calc-tag">= FCF% + Growth%</span></div>
+            <div class="label-en">SaaS efficiency benchmark</div>
+          </div>
+          <span class="computed percent" id="i-r40">—</span>
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">WR40 (加权)<span class="calc-tag">= Growth + 0.36 × FCF%</span></div>
+            <div class="label-en">Weighted Rule of 40</div>
+          </div>
+          <span class="computed percent" id="i-wr40">—</span>
+        </div>
+
+        <div class="section-title" style="margin-top: 24px;">— Implied Multiple</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">EV / Revenue<span class="calc-tag">= WR40 × 0.2 × 100</span></div>
+            <div class="label-en">Implied revenue multiple</div>
+          </div>
+          <span class="computed" id="i-mult">—</span>
+        </div>
+
+        <div class="formula-bar">
+          <div class="f-row"><span class="f-key">EV =</span> <span class="f-val">EV/Revenue × Total Revenue</span></div>
+          <div class="f-row"><span class="f-key">Output unit</span> <span class="f-val">USD m</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero-result">
+      <div class="hero-eyebrow">— Enterprise Value · International</div>
+      <div class="hero-value" id="i-ev-display">920.75</div>
+      <div class="hero-unit">USD m</div>
+      <div class="hero-secondary">
+        <div class="item">
+          <div class="lbl">FCF (USD m)</div>
+          <div class="val" id="i-fcf-mini">—</div>
+        </div>
+        <div class="item">
+          <div class="lbl">WR40</div>
+          <div class="val accent" id="i-wr40-mini">—</div>
+        </div>
+        <div class="item">
+          <div class="lbl">EV / Revenue</div>
+          <div class="val" id="i-mult-mini">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 中国区 ============ -->
+  <section class="panel" id="panel-cn">
+    <div class="grid">
+
+      <!-- Inputs -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">现金流 & 营收 <em>· inputs</em></div>
+          <div class="card-tag">CNY 百万</div>
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">经营活动产生的现金流量净额<span class="input-tag">INPUT</span></div>
+            <div class="label-en">Net cash flows from operating activities</div>
+          </div>
+          <input type="number" step="any" class="cell" id="c-ocf" value="179.43" />
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">资本性支出 (CapEx)<span class="input-tag">INPUT</span></div>
+            <div class="label-en">Cash paid for fixed assets, intangibles & other LT assets</div>
+          </div>
+          <input type="number" step="any" class="cell" id="c-capex" value="15.58" />
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">自由现金流 (FCF)<span class="calc-tag">= OCF − CapEx</span></div>
+            <div class="label-en">Free Cash Flow</div>
+          </div>
+          <span class="computed" id="c-fcf">—</span>
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">营业总收入 · 当期<span class="input-tag">INPUT</span></div>
+            <div class="label-en">Total Revenue (2025 FY)</div>
+          </div>
+          <input type="number" step="any" class="cell" id="c-rev1" value="1066.63" />
+        </div>
+
+        <div class="row input-row">
+          <div class="row-label">
+            <div class="label-cn">营业总收入 · 上期<span class="input-tag">INPUT</span></div>
+            <div class="label-en">Total Revenue (2024 FY)</div>
+          </div>
+          <input type="number" step="any" class="cell" id="c-rev0" value="711.14" />
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">营收增速<span class="calc-tag">= (Rev₁ − Rev₀) / Rev₀</span></div>
+            <div class="label-en">Revenue Growth (% of Change)</div>
+          </div>
+          <span class="computed percent" id="c-growth">—</span>
+        </div>
+
+        <div class="row input-row" style="margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--rule);">
+          <div class="row-label">
+            <div class="label-cn">汇率 · USD/CNY<span class="input-tag">INPUT</span></div>
+            <div class="label-en">FX rate for USD conversion</div>
+          </div>
+          <input type="number" step="any" class="cell" id="c-fx" value="7.0288" />
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">估值指标 <em>· metrics</em></div>
+          <div class="card-tag">VALUATION</div>
+        </div>
+
+        <div class="section-title">— Profitability</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">FCF 利润率<span class="calc-tag">= FCF / Revenue</span></div>
+            <div class="label-en">FCF Margin</div>
+          </div>
+          <span class="computed percent" id="c-fcfm">—</span>
+        </div>
+
+        <div class="section-title" style="margin-top: 24px;">— Composite Scores</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">Rule of 40<span class="calc-tag">= FCF% + Growth%</span></div>
+            <div class="label-en">SaaS efficiency benchmark</div>
+          </div>
+          <span class="computed percent" id="c-r40">—</span>
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">WR40 (加权)<span class="calc-tag">= Growth + 0.36 × FCF%</span></div>
+            <div class="label-en">Weighted Rule of 40</div>
+          </div>
+          <span class="computed percent" id="c-wr40">—</span>
+        </div>
+
+        <div class="section-title" style="margin-top: 24px;">— Implied Multiple</div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">EV / Revenue<span class="calc-tag">= WR40 × 0.2 × 100</span></div>
+            <div class="label-en">Implied revenue multiple</div>
+          </div>
+          <span class="computed" id="c-mult">—</span>
+        </div>
+
+        <div class="row">
+          <div class="row-label">
+            <div class="label-cn">EV (CNY 百万)<span class="calc-tag">= Multiple × Revenue</span></div>
+            <div class="label-en">Enterprise value · CNY mm</div>
+          </div>
+          <span class="computed" id="c-ev-cny-mm">—</span>
+        </div>
+
+        <div class="formula-bar">
+          <div class="f-row"><span class="f-key">CNY EV =</span> <span class="f-val">EV (mm) × 1,000,000</span></div>
+          <div class="f-row"><span class="f-key">USD EV =</span> <span class="f-val">CNY EV / FX</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero-result">
+      <div class="hero-eyebrow">— Enterprise Value · China</div>
+      <div class="hero-value" id="c-ev-display">¥ 11,843,620,180</div>
+      <div class="hero-unit">CNY · approx. <span id="c-ev-usd-inline">$1,685,013,115</span> USD</div>
+      <div class="hero-secondary">
+        <div class="item">
+          <div class="lbl">FCF (CNY mm)</div>
+          <div class="val" id="c-fcf-mini">—</div>
+        </div>
+        <div class="item">
+          <div class="lbl">WR40</div>
+          <div class="val accent" id="c-wr40-mini">—</div>
+        </div>
+        <div class="item">
+          <div class="lbl">EV (USD)</div>
+          <div class="val" id="c-ev-usd-mini">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Jefferies Matrix ============ -->
+  <section class="panel" id="panel-jeff">
+
+    <div class="matrix-intro">
+      <div>
+        <h2>Growth × Profitability <em>Trade-off</em></h2>
+        <p>软件行业 NTM EV/Revenue 倍数随 营收增速 (NTM Revenue Growth) 与 自由现金流率 (NTM FCF Margin) 的二维分布。Foxit 国际区与中国区的 WR40 指标会自动定位到对应区间，对比市场观测倍数。</p>
+      </div>
+      <div class="matrix-source">
+        <strong>Jefferies Research</strong>
+        Source: Company filings &<br/>Capital IQ as of 2/27/2026<br/>
+        Note: FCF = CFO − CapEx
+      </div>
+    </div>
+
+    <div class="matrix-wrapper">
+      <table class="matrix" id="jeffMatrix">
+        <thead>
+          <tr>
+            <th></th>
+            <th data-col="0"><span class="axis-band">&lt;10%</span><span class="axis-cap">NTM Revenue Growth</span></th>
+            <th data-col="1"><span class="axis-band">10% – 20%</span><span class="axis-cap">NTM Revenue Growth</span></th>
+            <th data-col="2"><span class="axis-band">20% – 30%</span><span class="axis-cap">NTM Revenue Growth</span></th>
+            <th data-col="3"><span class="axis-band">&gt;30%</span><span class="axis-cap">NTM Revenue Growth</span></th>
+            <th class="col-consolidated" data-col="C"><span class="axis-band">Consolidated</span><span class="axis-cap">NTM Multiple</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-row="0">
+            <th class="row-label"><span class="axis-band">&gt;30%</span><span class="axis-cap">NTM FCF Margin</span></th>
+            <td class="cell" data-row="0" data-col="0"><div class="mult">4.2×</div><div class="companies">11 Companies</div></td>
+            <td class="cell" data-row="0" data-col="1"><div class="mult">6.2×</div><div class="companies">7 Companies</div></td>
+            <td class="cell" data-row="0" data-col="2"><div class="mult">12.6×</div><div class="companies">3 Companies</div></td>
+            <td class="cell" data-row="0" data-col="3"><div class="mult">28.1×</div><div class="companies">2 Companies</div></td>
+            <td class="cell consolidated" data-row="0" data-col="C"><div class="mult">8.0×</div><div class="companies">23 Companies</div></td>
+          </tr>
+          <tr data-row="1">
+            <th class="row-label"><span class="axis-band">20% – 30%</span><span class="axis-cap">NTM FCF Margin</span></th>
+            <td class="cell" data-row="1" data-col="0"><div class="mult">3.2×</div><div class="companies">27 Companies</div></td>
+            <td class="cell" data-row="1" data-col="1"><div class="mult">4.3×</div><div class="companies">22 Companies</div></td>
+            <td class="cell" data-row="1" data-col="2"><div class="mult">7.6×</div><div class="companies">2 Companies</div></td>
+            <td class="cell empty" data-row="1" data-col="3"><div class="mult">—</div><div class="companies">— </div></td>
+            <td class="cell consolidated" data-row="1" data-col="C"><div class="mult">3.9×</div><div class="companies">51 Companies</div></td>
+          </tr>
+          <tr data-row="2">
+            <th class="row-label"><span class="axis-band">10% – 20%</span><span class="axis-cap">NTM FCF Margin</span></th>
+            <td class="cell" data-row="2" data-col="0"><div class="mult">1.8×</div><div class="companies">11 Companies</div></td>
+            <td class="cell" data-row="2" data-col="1"><div class="mult">4.3×</div><div class="companies">15 Companies</div></td>
+            <td class="cell" data-row="2" data-col="2"><div class="mult">7.6×</div><div class="companies">8 Companies</div></td>
+            <td class="cell empty" data-row="2" data-col="3"><div class="mult">—</div><div class="companies">— </div></td>
+            <td class="cell consolidated" data-row="2" data-col="C"><div class="mult">4.3×</div><div class="companies">34 Companies</div></td>
+          </tr>
+          <tr data-row="3">
+            <th class="row-label"><span class="axis-band">&lt;10%</span><span class="axis-cap">NTM FCF Margin</span></th>
+            <td class="cell" data-row="3" data-col="0"><div class="mult">1.3×</div><div class="companies">3 Companies</div></td>
+            <td class="cell" data-row="3" data-col="1"><div class="mult">2.9×</div><div class="companies">7 Companies</div></td>
+            <td class="cell" data-row="3" data-col="2"><div class="mult">4.4×</div><div class="companies">3 Companies</div></td>
+            <td class="cell empty" data-row="3" data-col="3"><div class="mult">—</div><div class="companies">— </div></td>
+            <td class="cell consolidated" data-row="3" data-col="C"><div class="mult">2.9×</div><div class="companies">13 Companies</div></td>
+          </tr>
+          <tr data-row="C" class="row-consolidated">
+            <th class="row-label"><span class="axis-band">Consolidated</span><span class="axis-cap">NTM Multiple</span></th>
+            <td class="cell consolidated" data-row="C" data-col="0"><div class="mult">3.0×</div><div class="companies">52 Companies</div></td>
+            <td class="cell consolidated" data-row="C" data-col="1"><div class="mult">4.3×</div><div class="companies">51 Companies</div></td>
+            <td class="cell consolidated" data-row="C" data-col="2"><div class="mult">8.0×</div><div class="companies">16 Companies</div></td>
+            <td class="cell consolidated" data-row="C" data-col="3"><div class="mult">28.1×</div><div class="companies">2 Companies</div></td>
+            <td class="cell consolidated" data-row="C" data-col="C"><div class="mult">4.7×</div><div class="companies">121 Companies</div></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="legend-cells">
+        <div class="legend-item"><span class="swatch s-intl"></span>国际区 落点</div>
+        <div class="legend-item"><span class="swatch s-cn"></span>中国区 落点</div>
+        <div class="legend-item"><span class="swatch s-both"></span>两区重合</div>
+        <div class="legend-item" style="margin-left:auto; color:var(--ink);">→ 点击任意格子查看明细</div>
+      </div>
+
+      <div class="history-controls">
+        <span style="letter-spacing:0.1em; text-transform:uppercase; color:var(--ink); font-weight:600;">Foxit 历史轨迹</span>
+        <label><input type="checkbox" id="trail-toggle" checked /> 显示历史点</label>
+        <span class="hc-legend"><span class="hc-dot intl"></span> 国际区 (2022 → 2025)</span>
+        <span class="hc-legend"><span class="hc-dot cn"></span> 中国区 (2022 → 2025)</span>
+        <span style="color:var(--muted); font-style:italic;">※ 占位数据，请按实际历史替换</span>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="benchmark-summary">
+      <div class="bench-card intl">
+        <div class="b-header">
+          <div class="b-region">国际区 <em>· International</em></div>
+          <div class="b-bucket" id="j-intl-bucket">—</div>
+        </div>
+        <div class="b-grid">
+          <div class="b-item">
+            <div class="b-lbl">Revenue Growth</div>
+            <div class="b-val" id="j-intl-growth">—</div>
+          </div>
+          <div class="b-item">
+            <div class="b-lbl">FCF Margin</div>
+            <div class="b-val" id="j-intl-fcfm">—</div>
+          </div>
+          <div class="b-item">
+            <div class="b-lbl">WR40 Multiple</div>
+            <div class="b-val accent" id="j-intl-wr40mult">—</div>
+          </div>
+        </div>
+        <div class="b-bucket-detail">
+          Jefferies 中位倍数 <strong id="j-intl-bench">—</strong> · WR40 模型倍数 <strong id="j-intl-model">—</strong> · 差异 <strong id="j-intl-diff">—</strong>
+        </div>
+      </div>
+
+      <div class="bench-card cn">
+        <div class="b-header">
+          <div class="b-region">中国区 <em>· China</em></div>
+          <div class="b-bucket" id="j-cn-bucket">—</div>
+        </div>
+        <div class="b-grid">
+          <div class="b-item">
+            <div class="b-lbl">Revenue Growth</div>
+            <div class="b-val" id="j-cn-growth">—</div>
+          </div>
+          <div class="b-item">
+            <div class="b-lbl">FCF Margin</div>
+            <div class="b-val" id="j-cn-fcfm">—</div>
+          </div>
+          <div class="b-item">
+            <div class="b-lbl">WR40 Multiple</div>
+            <div class="b-val pos" id="j-cn-wr40mult">—</div>
+          </div>
+        </div>
+        <div class="b-bucket-detail">
+          Jefferies 中位倍数 <strong id="j-cn-bench">—</strong> · WR40 模型倍数 <strong id="j-cn-model">—</strong> · 差异 <strong id="j-cn-diff">—</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- EV Compare bar chart -->
+    <div class="compare-section">
+      <div class="sec-head">
+        <h3>EV 对比 <em>· WR40 model vs Jefferies benchmark</em></h3>
+        <div class="sec-tag">SIDE-BY-SIDE</div>
+      </div>
+
+      <div class="bars-grid">
+        <div class="bar-group">
+          <div class="bg-title">国际区 · International (USD m)</div>
+
+          <div class="bar-row">
+            <div class="br-label"><strong>WR40 Multiple</strong><span id="cmp-i-wr40-mult-lbl">— ×</span></div>
+            <div class="bar-track"><div class="bar-fill wr40" id="cmp-i-wr40-bar"></div></div>
+            <div class="br-val" id="cmp-i-wr40-ev">—</div>
+          </div>
+          <div class="bar-row">
+            <div class="br-label"><strong>Jefferies Multiple</strong><span id="cmp-i-jeff-mult-lbl">— ×</span></div>
+            <div class="bar-track"><div class="bar-fill jeff" id="cmp-i-jeff-bar"></div></div>
+            <div class="br-val" id="cmp-i-jeff-ev">—</div>
+          </div>
+        </div>
+
+        <div class="bar-group">
+          <div class="bg-title">中国区 · China (RMB m)</div>
+
+          <div class="bar-row">
+            <div class="br-label"><strong>WR40 Multiple</strong><span id="cmp-c-wr40-mult-lbl">— ×</span></div>
+            <div class="bar-track"><div class="bar-fill wr40" id="cmp-c-wr40-bar"></div></div>
+            <div class="br-val" id="cmp-c-wr40-ev">—</div>
+          </div>
+          <div class="bar-row">
+            <div class="br-label"><strong>Jefferies Multiple</strong><span id="cmp-c-jeff-mult-lbl">— ×</span></div>
+            <div class="bar-track"><div class="bar-fill jeff" id="cmp-c-jeff-bar"></div></div>
+            <div class="br-val" id="cmp-c-jeff-ev">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-footnote">
+        <strong>计算口径：</strong>WR40 EV = (WR40 × 0.2 × 100) × Revenue。Jefferies EV = 同区间中位倍数 × Revenue。Foxit 两区落入 Jefferies 空数据格（&gt;30% growth × 中低 FCF margin），市场暂无可对标公司；标记为 <code style="background:var(--paper-card); padding:1px 5px; font-size:10px;">*</code> 的 Jefferies 倍数为 <strong>同利润率层、最高有数据增速档</strong> 的保守锚点（如 20–30% growth），以避免被 &gt;30% growth 列的两家超高利润率公司 28.1× 误导。
+      </div>
+    </div>
+
+  </section>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot input"></span>USER INPUT</div>
+      <div class="legend-item"><span class="legend-dot calc"></span>CALCULATED</div>
+      <div class="legend-item"><span class="legend-dot result"></span>FINAL OUTPUT</div>
+    </div>
+    <button class="reset-btn" id="resetBtn">↺ Reset to defaults</button>
+  </div>
+
+  <!-- Import Modal -->
+  <div class="modal-backdrop" id="importModal">
+    <div class="modal import-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">— AI 自动识别</div>
+          <div class="modal-title">导入财报 <em>· Financial Import</em></div>
+        </div>
+        <button class="modal-close" id="importModalClose">×</button>
+      </div>
+
+      <!-- API Key -->
+      <div class="import-section">
+        <div class="isec-label">OpenAI API Key</div>
+        <div class="api-key-row">
+          <input type="password" id="importApiKey" class="api-key-input" placeholder="sk-..." autocomplete="off" />
+          <button class="api-save-btn" id="importApiSave">保存</button>
+        </div>
+      </div>
+
+      <!-- Upload Zone -->
+      <div class="import-section">
+        <div class="isec-label">上传文件</div>
+        <div class="drop-zone" id="importDropZone">
+          <input type="file" id="importFileInput" accept=".xlsx,.xls,.png,.jpg,.jpeg" />
+          <span class="drop-zone-icon">📂</span>
+          <div class="drop-zone-text">
+            <strong>拖拽文件到此，或点击选择</strong>
+            财报截图 (PNG / JPG) &nbsp;·&nbsp; Excel 表格 (.xlsx / .xls)
+          </div>
+          <div class="drop-zone-formats">XLSX · XLS · PNG · JPG · JPEG</div>
+        </div>
+        <div class="import-status" id="importStatus"></div>
+      </div>
+
+      <!-- Results -->
+      <div class="import-section" id="importResults" style="display:none;">
+        <div class="isec-label">识别结果 <span id="importCurrBadge"></span></div>
+        <table class="extract-table">
+          <thead>
+            <tr>
+              <th>字段</th>
+              <th style="text-align:right;">换算值（百万）</th>
+              <th style="text-align:center; width:36px;">✓</th>
+            </tr>
+          </thead>
+          <tbody id="importResultsBody"></tbody>
+        </table>
+        <div id="importAiNotes" style="display:none; margin-top:10px; padding:9px 12px; background:var(--paper-warm); border-left:3px solid var(--gold); font-size:11px; color:var(--ink-soft); font-family:'Cascadia Code',Consolas,monospace; line-height:1.5;"></div>
+        <div class="region-row">
+          <span class="region-lbl">填入：</span>
+          <label><input type="radio" name="importRegion" value="intl" checked /> 国际区 (USD)</label>
+          <label><input type="radio" name="importRegion" value="cn" /> 中国区 (CNY)</label>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="import-footer">
+        <button class="import-cancel-btn" id="importCancelBtn">取消</button>
+        <button class="import-apply-btn" id="importApply" disabled>应用到计算器 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for matrix cell detail -->
+  <div class="modal-backdrop" id="cellModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow" id="modal-eyebrow">— Jefferies cell</div>
+          <div class="modal-title" id="modal-title">—</div>
+        </div>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-stat">
+          <div class="ms-label">Revenue Growth (NTM)</div>
+          <div class="ms-val" id="modal-growth">—</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">FCF Margin (NTM)</div>
+          <div class="ms-val" id="modal-fcfm">—</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">Median EV / NTM Revenue</div>
+          <div class="ms-val" id="modal-mult">—</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">Sample size</div>
+          <div class="ms-val" id="modal-count">—</div>
+        </div>
+
+        <div class="modal-block" id="modal-interpretation">—</div>
+
+        <div class="modal-foxit-status" id="modal-foxit-block">
+          <div style="font-family:"Cascadia Code", Consolas, Monaco, "Courier New", monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">Foxit 落点</div>
+          <div class="fs-row">
+            <span class="fs-label">国际区</span>
+            <span class="fs-val intl" id="modal-fs-intl">—</span>
+          </div>
+          <div class="fs-row">
+            <span class="fs-label">中国区</span>
+            <span class="fs-val cn" id="modal-fs-cn">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ====== TABS ======
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach(t => {
+    t.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ====== HELPERS ======
+  const $ = id => document.getElementById(id);
+  const num = id => {
+    const v = parseFloat($(id).value);
+    return isNaN(v) ? 0 : v;
+  };
+  const fmtCurrency = (v, sym='$') => {
+    if (!isFinite(v)) return '—';
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    return sign + sym + ' ' + abs.toLocaleString('en-US', {maximumFractionDigits: 0});
+  };
+  const fmtNum = (v, dec=2) => {
+    if (!isFinite(v)) return '—';
+    return v.toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+  };
+  const fmtPct = v => {
+    if (!isFinite(v)) return '—';
+    return (v * 100).toFixed(2) + ' %';
+  };
+
+  // exposed results for Jefferies matrix
+  let intlResult = null, cnResult = null;
+
+  // ====== CALC: INTL (all values in USD m) ======
+  function calcIntl() {
+    const ocf = num('i-ocf');     // USD m
+    const capex = num('i-capex'); // USD m
+    const rev1 = num('i-rev1');   // USD m
+    const rev0 = num('i-rev0');   // USD m
+
+    const fcf = ocf - capex;
+    const growth = rev0 === 0 ? NaN : (rev1 - rev0) / rev0;
+    const fcfm = rev1 === 0 ? NaN : fcf / rev1;
+    const r40 = fcfm + growth;
+    const wr40 = growth + 0.36 * fcfm;
+    const mult = wr40 * 0.2 * 100;
+    const ev = mult * rev1;       // USD m
+
+    $('i-fcf').textContent = fmtNum(fcf, 2) + ' m';
+    $('i-growth').textContent = fmtPct(growth);
+    $('i-fcfm').textContent = fmtPct(fcfm);
+    $('i-r40').textContent = fmtPct(r40);
+    $('i-wr40').textContent = fmtPct(wr40);
+    $('i-mult').textContent = fmtNum(mult, 2) + ' ×';
+
+    $('i-ev-display').textContent = fmtNum(ev, 2);
+    $('i-fcf-mini').textContent = fmtNum(fcf, 2);
+    $('i-wr40-mini').textContent = fmtPct(wr40);
+    $('i-mult-mini').textContent = fmtNum(mult, 2) + ' ×';
+
+    intlResult = { growth, fcfm, wr40, mult };
+  }
+
+  // ====== CALC: CN ======
+  function calcCN() {
+    const ocf = num('c-ocf');       // CNY mm
+    const capex = num('c-capex');   // CNY mm
+    const rev1 = num('c-rev1');     // CNY mm
+    const rev0 = num('c-rev0');     // CNY mm
+    const fx = num('c-fx');
+
+    const fcf = ocf - capex;
+    const growth = rev0 === 0 ? NaN : (rev1 - rev0) / rev0;
+    const fcfm = rev1 === 0 ? NaN : fcf / rev1;
+    const r40 = fcfm + growth;
+    const wr40 = growth + 0.36 * fcfm;
+    const mult = wr40 * 0.2 * 100;
+    const evMM = mult * rev1;       // CNY mm
+    const evCNY = evMM * 1_000_000; // CNY
+    const evUSD = fx === 0 ? NaN : evCNY / fx;
+
+    $('c-fcf').textContent = fmtNum(fcf, 2) + ' mm';
+    $('c-growth').textContent = fmtPct(growth);
+    $('c-fcfm').textContent = fmtPct(fcfm);
+    $('c-r40').textContent = fmtPct(r40);
+    $('c-wr40').textContent = fmtPct(wr40);
+    $('c-mult').textContent = fmtNum(mult, 2) + ' ×';
+    $('c-ev-cny-mm').textContent = fmtNum(evMM, 2) + ' mm';
+
+    $('c-ev-display').textContent = fmtCurrency(evCNY, '¥');
+    $('c-ev-usd-inline').textContent = fmtCurrency(evUSD, '$');
+    $('c-fcf-mini').textContent = fmtNum(fcf, 2);
+    $('c-wr40-mini').textContent = fmtPct(wr40);
+    $('c-ev-usd-mini').textContent = fmtCurrency(evUSD, '$');
+
+    cnResult = { growth, fcfm, wr40, mult };
+  }
+
+  // ====== JEFFERIES MATRIX MAPPING ======
+  // Row index: 0=>30%, 1=20-30%, 2=10-20%, 3=<10%   (FCF Margin, top→bottom)
+  // Col index: 0=<10%, 1=10-20%, 2=20-30%, 3=>30%   (Revenue Growth, left→right)
+  // Jefferies median multiples (rows × cols), null = empty cell
+  const JEFF_MULT = [
+    [4.2, 6.2, 12.6, 28.1],
+    [3.2, 4.3, 7.6, null],
+    [1.8, 4.3, 7.6, null],
+    [1.3, 2.9, 4.4, null],
+  ];
+  const JEFF_GROWTH_LABELS = ['<10%', '10–20%', '20–30%', '>30%'];
+  const JEFF_FCFM_LABELS = ['>30%', '20–30%', '10–20%', '<10%'];
+
+  // returns column index 0..3 from growth value (decimal, e.g. 0.30)
+  function growthCol(g) {
+    if (!isFinite(g)) return -1;
+    if (g < 0.10) return 0;
+    if (g < 0.20) return 1;
+    if (g < 0.30) return 2;
+    return 3;
+  }
+  // returns row index 0..3 from fcf margin value (decimal)
+  function fcfmRow(m) {
+    if (!isFinite(m)) return -1;
+    if (m >= 0.30) return 0;
+    if (m >= 0.20) return 1;
+    if (m >= 0.10) return 2;
+    return 3;
+  }
+
+  function updateJefferies() {
+    // clear highlight
+    document.querySelectorAll('#jeffMatrix td.cell').forEach(c => {
+      c.classList.remove('highlight-intl', 'highlight-cn', 'highlight-both');
+    });
+
+    if (!intlResult || !cnResult) return;
+
+    const iR = fcfmRow(intlResult.fcfm), iC = growthCol(intlResult.growth);
+    const cR = fcfmRow(cnResult.fcfm),   cC = growthCol(cnResult.growth);
+
+    const sameCell = (iR === cR && iC === cC);
+
+    // highlight
+    if (iR >= 0 && iC >= 0) {
+      const sel = `#jeffMatrix td.cell[data-row="${iR}"][data-col="${iC}"]`;
+      const el = document.querySelector(sel);
+      if (el) el.classList.add(sameCell ? 'highlight-both' : 'highlight-intl');
+    }
+    if (cR >= 0 && cC >= 0 && !sameCell) {
+      const sel = `#jeffMatrix td.cell[data-row="${cR}"][data-col="${cC}"]`;
+      const el = document.querySelector(sel);
+      if (el) el.classList.add('highlight-cn');
+    }
+
+    // INTL summary
+    const iBench = (iR >= 0 && iC >= 0) ? JEFF_MULT[iR][iC] : null;
+    const iBucketTxt = (iR >= 0 && iC >= 0)
+      ? `Growth ${JEFF_GROWTH_LABELS[iC]} · FCF ${JEFF_FCFM_LABELS[iR]}`
+      : '—';
+    $('j-intl-bucket').textContent = iBucketTxt;
+    $('j-intl-growth').textContent = fmtPct(intlResult.growth);
+    $('j-intl-fcfm').textContent = fmtPct(intlResult.fcfm);
+    $('j-intl-wr40mult').textContent = fmtNum(intlResult.mult, 2) + '×';
+    $('j-intl-bench').textContent = iBench === null ? '— (no data)' : fmtNum(iBench, 1) + '×';
+    $('j-intl-model').textContent = fmtNum(intlResult.mult, 2) + '×';
+    if (iBench !== null && isFinite(intlResult.mult)) {
+      const diff = intlResult.mult - iBench;
+      const sign = diff >= 0 ? '+' : '';
+      $('j-intl-diff').textContent = sign + fmtNum(diff, 2) + '× (' + sign + fmtNum(diff/iBench*100, 1) + '%)';
+    } else {
+      $('j-intl-diff').textContent = '—';
+    }
+
+    // CN summary
+    const cBench = (cR >= 0 && cC >= 0) ? JEFF_MULT[cR][cC] : null;
+    const cBucketTxt = (cR >= 0 && cC >= 0)
+      ? `Growth ${JEFF_GROWTH_LABELS[cC]} · FCF ${JEFF_FCFM_LABELS[cR]}`
+      : '—';
+    $('j-cn-bucket').textContent = cBucketTxt;
+    $('j-cn-growth').textContent = fmtPct(cnResult.growth);
+    $('j-cn-fcfm').textContent = fmtPct(cnResult.fcfm);
+    $('j-cn-wr40mult').textContent = fmtNum(cnResult.mult, 2) + '×';
+    $('j-cn-bench').textContent = cBench === null ? '— (no data)' : fmtNum(cBench, 1) + '×';
+    $('j-cn-model').textContent = fmtNum(cnResult.mult, 2) + '×';
+    if (cBench !== null && isFinite(cnResult.mult)) {
+      const diff = cnResult.mult - cBench;
+      const sign = diff >= 0 ? '+' : '';
+      $('j-cn-diff').textContent = sign + fmtNum(diff, 2) + '× (' + sign + fmtNum(diff/cBench*100, 1) + '%)';
+    } else {
+      $('j-cn-diff').textContent = '—';
+    }
+  }
+
+  // ====== HISTORY TRAIL (placeholder data — replace with real history) ======
+  // Each point: { year, growth (decimal), fcfm (decimal) }
+  const HISTORY = {
+    intl: [
+      { year: '2022', growth: 0.085, fcfm: 0.08 },   // <10% growth × <10% margin
+      { year: '2023', growth: 0.15,  fcfm: 0.14 },   // 10-20% × 10-20%
+      { year: '2024', growth: 0.22,  fcfm: 0.20 },   // 20-30% × 20-30%
+      // 2025 = current (auto-plotted from inputs)
+    ],
+    cn: [
+      { year: '2022', growth: 0.12, fcfm: 0.05 },    // 10-20% × <10%
+      { year: '2023', growth: 0.28, fcfm: 0.09 },    // 20-30% × <10%
+      { year: '2024', growth: 0.42, fcfm: 0.13 },    // >30% × 10-20%
+      // 2025 = current
+    ]
+  };
+
+  // Build a cell -> {pixels-friendly position} system using row/col indices.
+  // Within a cell, we use a 4x4 micro-grid so multiple dots in same cell don't overlap.
+  function placeTrailDots() {
+    // Remove old dots
+    document.querySelectorAll('.matrix .trail-dot, .matrix .trail-layer').forEach(n => n.remove());
+
+    if (!$('trail-toggle').checked) return;
+
+    // We need to place dots on top of the cells. Add a trail-layer div into each non-consolidated cell as needed.
+    // Strategy: for each point, find its cell, append a positioned dot inside that cell.
+    function addPoint(point, region, isCurrent) {
+      const r = fcfmRow(point.fcfm), c = growthCol(point.growth);
+      if (r < 0 || c < 0) return;
+      const cell = document.querySelector(`#jeffMatrix td.cell[data-row="${r}"][data-col="${c}"]`);
+      if (!cell) return;
+
+      // Position dot within the cell based on continuous values for nicer placement
+      // Map growth within its bucket and fcfm within its bucket to a 0..1 position
+      const growthBounds = [[0, 0.10], [0.10, 0.20], [0.20, 0.30], [0.30, 0.60]];
+      const fcfmBounds = [[0.30, 0.50], [0.20, 0.30], [0.10, 0.20], [0, 0.10]];
+      const gb = growthBounds[c];
+      const fb = fcfmBounds[r];
+      const xPct = clamp((point.growth - gb[0]) / (gb[1] - gb[0]), 0.15, 0.85) * 100;
+      // For fcfm, higher = top, so invert
+      const yPct = (1 - clamp((point.fcfm - fb[0]) / (fb[1] - fb[0]), 0.15, 0.85)) * 100;
+
+      const dot = document.createElement('div');
+      dot.className = 'trail-dot ' + region + (isCurrent ? ' current' : '');
+      dot.style.left = xPct + '%';
+      dot.style.top = yPct + '%';
+      dot.textContent = (point.year || '').slice(-2);
+      dot.title = `${region === 'intl' ? '国际区' : '中国区'} ${point.year} · Growth ${(point.growth*100).toFixed(1)}% · FCF ${(point.fcfm*100).toFixed(1)}%`;
+      cell.appendChild(dot);
+    }
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    HISTORY.intl.forEach(p => addPoint(p, 'intl', false));
+    HISTORY.cn.forEach(p => addPoint(p, 'cn', false));
+
+    // Current (2025) from live inputs
+    if (intlResult && isFinite(intlResult.growth) && isFinite(intlResult.fcfm)) {
+      addPoint({ year: '2025', growth: intlResult.growth, fcfm: intlResult.fcfm }, 'intl', true);
+    }
+    if (cnResult && isFinite(cnResult.growth) && isFinite(cnResult.fcfm)) {
+      addPoint({ year: '2025', growth: cnResult.growth, fcfm: cnResult.fcfm }, 'cn', true);
+    }
+  }
+
+  $('trail-toggle').addEventListener('change', placeTrailDots);
+
+  // ====== EV COMPARE BAR CHART ======
+  // For empty cells we need a sensible fallback. Column-consolidated for >30% growth
+  // is dominated by the 2 high-margin outliers (28.1×), which isn't a fair anchor for
+  // a lower-margin company. We use the same-FCF-margin row's "20-30% growth" cell
+  // (the highest growth bucket with data in that margin tier) as a conservative anchor.
+  const JEFF_COL_CONSOLIDATED = [3.0, 4.3, 8.0, 28.1];
+
+  function jeffMultFor(growth, fcfm) {
+    const r = fcfmRow(fcfm), c = growthCol(growth);
+    if (r < 0 || c < 0) return { mult: null, fallback: null };
+    const m = JEFF_MULT[r][c];
+    if (m !== null) return { mult: m, fallback: null };
+    // Walk leftward in same row to find nearest non-empty cell (same margin tier)
+    for (let cc = c - 1; cc >= 0; cc--) {
+      if (JEFF_MULT[r][cc] !== null) {
+        return { mult: JEFF_MULT[r][cc], fallback: `same-margin · ${JEFF_GROWTH_LABELS[cc]} growth` };
+      }
+    }
+    return { mult: null, fallback: null };
+  }
+
+  function updateCompare() {
+    // Find current revenues
+    const iRev = num('i-rev1');
+    const cRev = num('c-rev1');
+
+    function renderRegion(prefix, res, rev) {
+      if (!res || !isFinite(res.mult)) return;
+      const wr40Mult = res.mult;
+      const wr40Ev = wr40Mult * rev;
+
+      const jeff = jeffMultFor(res.growth, res.fcfm);
+      const jeffEv = jeff.mult !== null ? jeff.mult * rev : null;
+
+      // Scale bars: take max of the two for full width
+      const maxEv = Math.max(wr40Ev, jeffEv || 0) || 1;
+      const wr40Pct = (wr40Ev / maxEv) * 100;
+      const jeffPct = jeffEv !== null ? (jeffEv / maxEv) * 100 : 100;
+
+      $(`cmp-${prefix}-wr40-mult-lbl`).textContent = fmtNum(wr40Mult, 2) + ' ×';
+      $(`cmp-${prefix}-wr40-bar`).style.width = wr40Pct + '%';
+      $(`cmp-${prefix}-wr40-ev`).textContent = fmtNum(wr40Ev, 0);
+      $(`cmp-${prefix}-wr40-ev`).classList.remove('na');
+
+      const jeffMultLblEl = $(`cmp-${prefix}-jeff-mult-lbl`);
+      const jeffBarEl = $(`cmp-${prefix}-jeff-bar`);
+      const jeffEvEl = $(`cmp-${prefix}-jeff-ev`);
+
+      if (jeff.mult === null) {
+        jeffMultLblEl.textContent = '— (no data)';
+        jeffBarEl.style.width = '100%';
+        jeffBarEl.className = 'bar-fill jeff-na';
+        jeffEvEl.textContent = '—';
+        jeffEvEl.classList.add('na');
+      } else {
+        const isFallback = jeff.fallback !== null;
+        jeffMultLblEl.textContent = fmtNum(jeff.mult, 1) + ' ×' + (isFallback ? ' *' : '');
+        jeffBarEl.style.width = jeffPct + '%';
+        jeffBarEl.className = 'bar-fill ' + (isFallback ? 'jeff-na' : 'jeff');
+        jeffEvEl.textContent = fmtNum(jeffEv, 0) + (isFallback ? ' *' : '');
+        jeffEvEl.classList.remove('na');
+      }
+    }
+
+    renderRegion('i', intlResult, iRev);
+    renderRegion('c', cnResult, cRev);
+  }
+
+  // ====== MODAL ======
+  const JEFF_COUNTS = [
+    [11, 7, 3, 2],
+    [27, 22, 2, 0],
+    [11, 15, 8, 0],
+    [3, 7, 3, 0],
+  ];
+
+  function openCellModal(r, c) {
+    // Consolidated rows/cols: only handle pure 0..3
+    if (r === 'C' || c === 'C') return; // skip consolidated for now
+
+    r = +r; c = +c;
+    const mult = JEFF_MULT[r][c];
+    const count = JEFF_COUNTS[r][c];
+    const growthLbl = JEFF_GROWTH_LABELS[c];
+    const fcfmLbl = JEFF_FCFM_LABELS[r];
+
+    $('modal-eyebrow').textContent = '— Jefferies Benchmark Cell';
+    $('modal-title').innerHTML = `Growth <em>${growthLbl}</em> × FCF Margin <em>${fcfmLbl}</em>`;
+    $('modal-growth').textContent = growthLbl;
+    $('modal-fcfm').textContent = fcfmLbl;
+    $('modal-mult').textContent = mult === null ? '— (no data)' : fmtNum(mult, 1) + ' ×';
+    $('modal-count').textContent = count > 0 ? count + ' companies' : '0 companies';
+
+    const interp = $('modal-interpretation');
+    if (mult === null) {
+      // find horizontal neighbor for context
+      let neighbor = null;
+      for (let cc = c - 1; cc >= 0; cc--) {
+        if (JEFF_MULT[r][cc] !== null) {
+          neighbor = { mult: JEFF_MULT[r][cc], label: JEFF_GROWTH_LABELS[cc] };
+          break;
+        }
+      }
+      interp.className = 'modal-block empty';
+      interp.innerHTML = `<strong>样本空缺。</strong>Jefferies 在该区间没有可对比的上市公司。&gt;30% growth 且 FCF 利润率低于 30% 的软件公司在公开市场极少 — 多数同类公司仍处于 "burning cash for growth" 阶段，要么未盈利要么尚未上市。${neighbor ? `参考同利润率层、20–30% 增速档的中位倍数 <strong>${fmtNum(neighbor.mult, 1)}×</strong> 作为保守锚点。` : ''}`;
+    } else if (mult >= 10) {
+      interp.className = 'modal-block';
+      interp.innerHTML = `<strong>稀缺高估值区间。</strong>该格仅 ${count} 家公司，市场给予 ${fmtNum(mult, 1)}× 高倍数 — 通常是同时具备 "增长 + 利润" 的优质 SaaS。能落入这个区间的公司估值溢价显著。`;
+    } else if (mult >= 5) {
+      interp.className = 'modal-block';
+      interp.innerHTML = `<strong>中等估值区间。</strong>${count} 家公司中位倍数 ${fmtNum(mult, 1)}× — 健康的成长 + 利润组合，市场认可度较高。`;
+    } else {
+      interp.className = 'modal-block';
+      interp.innerHTML = `<strong>低估值区间。</strong>${count} 家公司中位倍数仅 ${fmtNum(mult, 1)}× — 增长或利润有明显短板，市场给予折价。`;
+    }
+
+    // Foxit 落点状态
+    const iR = intlResult ? fcfmRow(intlResult.fcfm) : -1;
+    const iC = intlResult ? growthCol(intlResult.growth) : -1;
+    const cR = cnResult ? fcfmRow(cnResult.fcfm) : -1;
+    const cC = cnResult ? growthCol(cnResult.growth) : -1;
+
+    $('modal-fs-intl').textContent = (iR === r && iC === c) ? '✓ 当前落在此格' : '不在此格';
+    $('modal-fs-cn').textContent = (cR === r && cC === c) ? '✓ 当前落在此格' : '不在此格';
+    $('modal-fs-intl').style.opacity = (iR === r && iC === c) ? '1' : '0.4';
+    $('modal-fs-cn').style.opacity = (cR === r && cC === c) ? '1' : '0.4';
+
+    $('cellModal').classList.add('open');
+  }
+
+  // Wire cell clicks
+  document.querySelectorAll('#jeffMatrix td.cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const r = cell.dataset.row;
+      const c = cell.dataset.col;
+      openCellModal(r, c);
+    });
+  });
+
+  $('modal-close').addEventListener('click', () => $('cellModal').classList.remove('open'));
+  $('cellModal').addEventListener('click', (e) => {
+    if (e.target.id === 'cellModal') $('cellModal').classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') $('cellModal').classList.remove('open');
+  });
+
+  function recalc() {
+    calcIntl();
+    calcCN();
+    updateJefferies();
+    updateCompare();
+    placeTrailDots();
+  }
+
+  // wire all inputs
+  document.querySelectorAll('input.cell').forEach(inp => {
+    inp.addEventListener('input', recalc);
+    // select on focus for easy edits
+    inp.addEventListener('focus', e => e.target.select());
+  });
+
+  // reset
+  const defaults = {
+    'i-ocf': 38.33, 'i-capex': 7.53,
+    'i-rev1': 116.11, 'i-rev0': 89.25,
+    'c-ocf': 179.43, 'c-capex': 15.58,
+    'c-rev1': 1066.63, 'c-rev0': 711.14, 'c-fx': 7.0288
+  };
+  $('resetBtn').addEventListener('click', () => {
+    Object.entries(defaults).forEach(([k,v]) => $(k).value = v);
+    recalc();
+  });
+
+  // timestamp
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  $('timestamp').textContent = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())}`;
+
+  // initial calc
+  recalc();
+
+  // ====== IMPORT FEATURE ======
+  let _importData = null;
+  const STORAGE_KEY = 'foxit_oai_key';
+
+  // Open / close
+  $('importBtn').addEventListener('click', () => $('importModal').classList.add('open'));
+  $('importModalClose').addEventListener('click', () => $('importModal').classList.remove('open'));
+  $('importCancelBtn').addEventListener('click', () => $('importModal').classList.remove('open'));
+  $('importModal').addEventListener('click', e => {
+    if (e.target.id === 'importModal') $('importModal').classList.remove('open');
+  });
+
+  // Restore saved API key
+  const keyEl = $('importApiKey');
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if (savedKey) keyEl.value = savedKey;
+
+  $('importApiSave').addEventListener('click', () => {
+    const k = keyEl.value.trim();
+    if (!k) return;
+    localStorage.setItem(STORAGE_KEY, k);
+    setImportStatus('success', 'API Key 已保存到本地 ✓');
+    setTimeout(() => setImportStatus('none'), 2000);
+  });
+
+  // Drag & drop + click upload
+  const dropZone = $('importDropZone');
+  const fileInput = $('importFileInput');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) processImportFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) processImportFile(e.target.files[0]);
+    e.target.value = ''; // allow re-upload of same file
+  });
+
+  function setImportStatus(type, msg) {
+    const el = $('importStatus');
+    el.className = 'import-status' + (type !== 'none' ? ' ' + type : '');
+    if (type === 'loading') el.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+    else if (type !== 'none') el.textContent = msg;
+  }
+
+  async function processImportFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const isExcel = ['xlsx', 'xls'].includes(ext);
+    const isImage = ['png', 'jpg', 'jpeg'].includes(ext);
+
+    if (!isExcel && !isImage) {
+      setImportStatus('error', '格式不支持，请上传 XLSX / XLS / PNG / JPG 文件');
+      return;
+    }
+
+    const apiKey = (localStorage.getItem(STORAGE_KEY) || keyEl.value).trim();
+    if (!apiKey) {
+      setImportStatus('error', '请先填写并保存 OpenAI API Key');
+      return;
+    }
+
+    setImportStatus('loading', isExcel ? '正在解析 Excel，AI 提取数据中…' : '正在识别财报截图，请稍候…');
+    $('importResults').style.display = 'none';
+    $('importApply').disabled = true;
+    _importData = null;
+
+    try {
+      const data = isExcel
+        ? await parseExcelWithAI(file, apiKey)
+        : await parseImageWithAI(file, apiKey);
+      _importData = data;
+      renderImportResults(data);
+      setImportStatus('success', '识别完成 ✓');
+      $('importResults').style.display = '';
+      $('importApply').disabled = false;
+    } catch (err) {
+      setImportStatus('error', '识别失败：' + (err.message || '请检查 API Key 及网络连接'));
+    }
+  }
+
+  // ---- Image → GPT-4o Vision ----
+  async function parseImageWithAI(file, apiKey) {
+    const b64 = await readFileAsBase64(file);
+    const mime = file.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const prompt = `从这张财务报表截图中提取关键财务数据。注意识别表格中的数字单位（元/千元/百万元/亿元/USD/USD m 等）。
+
+仅返回如下 JSON，不加任何说明文字或代码块标记：
+{"currency":"CNY或USD","unit_mult":将报表原始数字换算为百万单位的系数(元或USD填0.000001,千元填0.001,百万元或USD_m填1,亿元填100,十亿USD填1000),"ocf":经营活动产生的现金流量净额原始数字,"capex":资本性支出原始正数,"rev_cur":当期营业总收入原始数字,"rev_prev":上期营业总收入原始数字,"fx":USD/CNY汇率数字或null,"notes":"识别困难或特殊情况说明，无则填null"}`;
+
+    const content = await callOpenAI(apiKey, [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
+        { type: 'text', text: prompt }
+      ]
+    }]);
+    return parseAIJson(content);
+  }
+
+  // ---- Excel → SheetJS → GPT-4o ----
+  async function parseExcelWithAI(file, apiKey) {
+    await loadSheetJS();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    let text = '';
+    for (const name of wb.SheetNames.slice(0, 8)) {
+      const rows = XLSX.utils.sheet_to_csv(wb.Sheets[name], { blankrows: false })
+        .split('\n')
+        .filter(l => l.replace(/,/g, '').trim().length > 0);
+      if (rows.length > 2) {
+        text += `[表格: ${name}]\n${rows.join('\n')}\n\n`;
+      }
+      if (text.length > 14000) break;
+    }
+
+    const prompt = `以下是财务报表 Excel 文件内容（CSV 格式）：
+
+${text}
+
+请从中提取关键财务数据，注意识别数字的单位（元/千元/百万元/亿元等）。
+
+仅返回如下 JSON，不加任何说明文字或代码块标记：
+{"currency":"CNY或USD","unit_mult":将报表原始数字换算为百万单位的系数(元填0.000001,千元填0.001,百万元填1,亿元填100),"ocf":经营活动产生的现金流量净额原始数字,"capex":资本性支出原始正数,"rev_cur":当期营业总收入原始数字,"rev_prev":上期营业总收入原始数字,"fx":USD/CNY汇率或null,"notes":"特殊情况说明，无则填null"}`;
+
+    const content = await callOpenAI(apiKey, [{ role: 'user', content: prompt }]);
+    return parseAIJson(content);
+  }
+
+  // ---- OpenAI API call ----
+  async function callOpenAI(apiKey, messages) {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ model: 'gpt-4o', messages, max_tokens: 600 })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+    const j = await res.json();
+    return j.choices[0].message.content.trim();
+  }
+
+  // ---- Utilities ----
+  function parseAIJson(str) {
+    // Strip markdown code fences if model adds them
+    const s = str.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+    return JSON.parse(s);
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadSheetJS() {
+    return new Promise((resolve, reject) => {
+      if (window.XLSX) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('SheetJS 加载失败，请检查网络连接'));
+      document.head.appendChild(s);
+    });
+  }
+
+  // ---- Render extracted results ----
+  function renderImportResults(d) {
+    const m = d.unit_mult || 1;
+    const fields = [
+      { cn: '经营活动净现金流 (OCF)', en: 'Net Cash from Operations', raw: d.ocf,      useMult: true  },
+      { cn: '资本性支出 (CapEx)',      en: 'Capital Expenditure',       raw: d.capex,    useMult: true  },
+      { cn: '当期营业总收入',          en: 'Revenue · Current Period',  raw: d.rev_cur,  useMult: true  },
+      { cn: '上期营业总收入',          en: 'Revenue · Prior Period',    raw: d.rev_prev, useMult: true  },
+      { cn: '汇率 USD/CNY',           en: 'FX Rate',                   raw: d.fx,       useMult: false },
+    ];
+
+    const tbody = $('importResultsBody');
+    tbody.innerHTML = '';
+    fields.forEach(f => {
+      const ok = f.raw !== null && f.raw !== undefined && isFinite(+f.raw);
+      const disp = ok
+        ? (f.useMult ? fmtNum(+f.raw * m, 2) + ' m' : fmtNum(+f.raw, 4))
+        : '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="et-name"><strong>${f.cn}</strong>${f.en}</td>
+        <td class="et-val ${ok ? '' : 'empty'}">${disp}</td>
+        <td class="et-status">${ok ? '✓' : '<span style="color:var(--muted)">—</span>'}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Currency badge
+    const badge = $('importCurrBadge');
+    const isCNY = d.currency !== 'USD';
+    badge.textContent = d.currency || '?';
+    badge.style.cssText = `font-family:"Cascadia Code",Consolas,monospace;font-size:9px;letter-spacing:0.1em;
+      padding:2px 7px;border-radius:2px;
+      background:${isCNY ? '#dcfce7' : '#e0e7ff'};color:${isCNY ? '#166534' : '#1d4ed8'};`;
+
+    // Auto-select region by currency
+    document.querySelector(`input[name="importRegion"][value="${isCNY ? 'cn' : 'intl'}"]`).checked = true;
+
+    // AI notes
+    const notesEl = $('importAiNotes');
+    if (d.notes && d.notes !== 'null' && String(d.notes).length > 1) {
+      notesEl.textContent = '⚠ ' + d.notes;
+      notesEl.style.display = '';
+    } else {
+      notesEl.style.display = 'none';
+    }
+  }
+
+  // ---- Apply to calculator ----
+  $('importApply').addEventListener('click', () => {
+    if (!_importData) return;
+    const region = document.querySelector('input[name="importRegion"]:checked').value;
+    const m = _importData.unit_mult || 1;
+
+    function fill(id, raw, mult, dec) {
+      if (raw !== null && raw !== undefined && isFinite(+raw)) {
+        $(id).value = (+raw * mult).toFixed(dec !== undefined ? dec : 2);
+      }
+    }
+
+    if (region === 'intl') {
+      fill('i-ocf',   _importData.ocf,      m);
+      fill('i-capex', _importData.capex,    m);
+      fill('i-rev1',  _importData.rev_cur,  m);
+      fill('i-rev0',  _importData.rev_prev, m);
+    } else {
+      fill('c-ocf',   _importData.ocf,      m);
+      fill('c-capex', _importData.capex,    m);
+      fill('c-rev1',  _importData.rev_cur,  m);
+      fill('c-rev0',  _importData.rev_prev, m);
+      if (_importData.fx && isFinite(+_importData.fx)) {
+        fill('c-fx', _importData.fx, 1, 4);
+      }
+    }
+
+    recalc();
+    $('importModal').classList.remove('open');
+    // Switch to the filled tab
+    document.querySelector(`.tab[data-tab="${region}"]`).click();
+  });
+</script>
+</body>
+</html>
