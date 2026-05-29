@@ -1332,7 +1332,7 @@
             <div class="label-cn">经营活动产生的现金流量净额<span class="input-tag">USD m</span></div>
             <div class="label-en">Net cash flows from operating activities</div>
           </div>
-          <input type="number" step="any" class="cell" id="i-ocf" value="38.33" />
+          <input type="number" step="any" class="cell" id="i-ocf" placeholder="0.00" />
         </div>
 
         <div class="row input-row">
@@ -1340,7 +1340,7 @@
             <div class="label-cn">资本性支出 (CapEx)<span class="input-tag">USD m</span></div>
             <div class="label-en">Cash paid for fixed assets, intangibles & other LT assets</div>
           </div>
-          <input type="number" step="any" class="cell" id="i-capex" value="7.53" />
+          <input type="number" step="any" class="cell" id="i-capex" placeholder="0.00" />
         </div>
 
         <div class="row">
@@ -1356,7 +1356,7 @@
             <div class="label-cn">营业总收入 · 当期<span class="input-tag">USD m</span></div>
             <div class="label-en">Total Revenue (2025 FY)</div>
           </div>
-          <input type="number" step="any" class="cell" id="i-rev1" value="116.11" />
+          <input type="number" step="any" class="cell" id="i-rev1" placeholder="0.00" />
         </div>
 
         <div class="row input-row">
@@ -1364,7 +1364,7 @@
             <div class="label-cn">营业总收入 · 上期<span class="input-tag">USD m</span></div>
             <div class="label-en">Total Revenue (2024 FY)</div>
           </div>
-          <input type="number" step="any" class="cell" id="i-rev0" value="89.25" />
+          <input type="number" step="any" class="cell" id="i-rev0" placeholder="0.00" />
         </div>
 
         <div class="row">
@@ -1431,7 +1431,7 @@
     <!-- HERO -->
     <div class="hero-result">
       <div class="hero-eyebrow">— Enterprise Value · International</div>
-      <div class="hero-value" id="i-ev-display">920.75</div>
+      <div class="hero-value" id="i-ev-display">—</div>
       <div class="hero-unit">USD m</div>
       <div class="hero-secondary">
         <div class="item">
@@ -1466,7 +1466,7 @@
             <div class="label-cn">经营活动产生的现金流量净额<span class="input-tag">INPUT</span></div>
             <div class="label-en">Net cash flows from operating activities</div>
           </div>
-          <input type="number" step="any" class="cell" id="c-ocf" value="179.43" />
+          <input type="number" step="any" class="cell" id="c-ocf" placeholder="0.00" />
         </div>
 
         <div class="row input-row">
@@ -1474,7 +1474,7 @@
             <div class="label-cn">资本性支出 (CapEx)<span class="input-tag">INPUT</span></div>
             <div class="label-en">Cash paid for fixed assets, intangibles & other LT assets</div>
           </div>
-          <input type="number" step="any" class="cell" id="c-capex" value="15.58" />
+          <input type="number" step="any" class="cell" id="c-capex" placeholder="0.00" />
         </div>
 
         <div class="row">
@@ -1490,7 +1490,7 @@
             <div class="label-cn">营业总收入 · 当期<span class="input-tag">INPUT</span></div>
             <div class="label-en">Total Revenue (2025 FY)</div>
           </div>
-          <input type="number" step="any" class="cell" id="c-rev1" value="1066.63" />
+          <input type="number" step="any" class="cell" id="c-rev1" placeholder="0.00" />
         </div>
 
         <div class="row input-row">
@@ -1498,7 +1498,7 @@
             <div class="label-cn">营业总收入 · 上期<span class="input-tag">INPUT</span></div>
             <div class="label-en">Total Revenue (2024 FY)</div>
           </div>
-          <input type="number" step="any" class="cell" id="c-rev0" value="711.14" />
+          <input type="number" step="any" class="cell" id="c-rev0" placeholder="0.00" />
         </div>
 
         <div class="row">
@@ -1514,7 +1514,7 @@
             <div class="label-cn">汇率 · USD/CNY<span class="input-tag">INPUT</span></div>
             <div class="label-en">FX rate for USD conversion</div>
           </div>
-          <input type="number" step="any" class="cell" id="c-fx" value="7.0288" />
+          <input type="number" step="any" class="cell" id="c-fx" value="7.0288" placeholder="7.0000" />
         </div>
       </div>
 
@@ -1581,8 +1581,8 @@
     <!-- HERO -->
     <div class="hero-result">
       <div class="hero-eyebrow">— Enterprise Value · China</div>
-      <div class="hero-value" id="c-ev-display">¥ 11,843,620,180</div>
-      <div class="hero-unit">CNY · approx. <span id="c-ev-usd-inline">$1,685,013,115</span> USD</div>
+      <div class="hero-value" id="c-ev-display">—</div>
+      <div class="hero-unit">CNY · approx. <span id="c-ev-usd-inline">—</span> USD</div>
       <div class="hero-secondary">
         <div class="item">
           <div class="lbl">FCF (CNY mm)</div>
@@ -2333,10 +2333,10 @@
 
   // reset
   const defaults = {
-    'i-ocf': 38.33, 'i-capex': 7.53,
-    'i-rev1': 116.11, 'i-rev0': 89.25,
-    'c-ocf': 179.43, 'c-capex': 15.58,
-    'c-rev1': 1066.63, 'c-rev0': 711.14, 'c-fx': 7.0288
+    'i-ocf': '', 'i-capex': '',
+    'i-rev1': '', 'i-rev0': '',
+    'c-ocf': '', 'c-capex': '',
+    'c-rev1': '', 'c-rev0': '', 'c-fx': 7.0288
   };
   $('resetBtn').addEventListener('click', () => {
     Object.entries(defaults).forEach(([k,v]) => $(k).value = v);
