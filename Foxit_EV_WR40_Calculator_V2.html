@@ -1831,7 +1831,7 @@
 
       <!-- Results -->
       <div class="import-section" id="importResults" style="display:none;">
-        <div class="isec-label">识别结果 <span id="importCurrBadge"></span></div>
+        <div class="isec-label" id="importResultsLabel">当前计算器值 <span id="importCurrBadge"></span></div>
         <table class="extract-table">
           <thead>
             <tr>
@@ -2356,12 +2356,49 @@
   const STORAGE_KEY = 'foxit_oai_key';
 
   // Open / close
-  $('importBtn').addEventListener('click', () => $('importModal').classList.add('open'));
+  $('importBtn').addEventListener('click', () => {
+    _importData = null;
+    $('importApply').disabled = true;
+    setImportStatus('none');
+    showCurrentValues();          // 打开时先显示当前计算器值作为基准
+    $('importModal').classList.add('open');
+  });
   $('importModalClose').addEventListener('click', () => $('importModal').classList.remove('open'));
   $('importCancelBtn').addEventListener('click', () => $('importModal').classList.remove('open'));
   $('importModal').addEventListener('click', e => {
     if (e.target.id === 'importModal') $('importModal').classList.remove('open');
   });
+
+  // 显示当前计算器值（弹窗默认状态）
+  function showCurrentValues() {
+    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    const isCN = activeTab === 'cn';
+    const data = {
+      currency: isCN ? 'CNY' : 'USD',
+      unit_mult: 1,
+      ocf:      isCN ? num('c-ocf')   : num('i-ocf'),
+      capex:    isCN ? num('c-capex') : num('i-capex'),
+      rev_cur:  isCN ? num('c-rev1')  : num('i-rev1'),
+      rev_prev: isCN ? num('c-rev0')  : num('i-rev0'),
+      fx:       isCN ? num('c-fx')    : null,
+      notes: null
+    };
+    renderImportResults(data);
+    // 覆盖 badge & 标题为"当前值"提示
+    const badge = $('importCurrBadge');
+    badge.textContent = '当前值';
+    badge.style.cssText = 'font-family:"Cascadia Code",Consolas,monospace;font-size:9px;letter-spacing:0.1em;' +
+      'padding:2px 7px;border-radius:2px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--rule);';
+    $('importResultsLabel').firstChild.textContent = '当前计算器值  ';
+    // 显示操作提示
+    const hint = $('importAiNotes');
+    hint.textContent = '↑ 上传财报截图或 Excel，AI 将自动识别并替换以上数值';
+    hint.style.cssText = 'display:block;margin-top:10px;padding:9px 12px;background:var(--paper-warm);' +
+      'border-left:3px solid var(--ink-soft);font-size:11px;color:var(--muted);' +
+      'font-family:"Cascadia Code",Consolas,monospace;line-height:1.5;';
+    $('importResults').style.display = '';
+    $('importApply').disabled = true;  // 当前值不需要"应用"
+  }
 
   // Restore saved API key
   const keyEl = $('importApiKey');
@@ -2426,6 +2463,7 @@
         : await parseImageWithAI(file, apiKey);
       _importData = data;
       renderImportResults(data);
+      $('importResultsLabel').firstChild.textContent = 'AI 识别结果  ';
       setImportStatus('success', '识别完成 ✓');
       $('importResults').style.display = '';
       $('importApply').disabled = false;
